@@ -13,8 +13,10 @@ module Api
             data: {
               user: {
                 id: resource.id,
-                email: resource.email
-              }
+                email: resource.email,
+                username: resource.username
+              },
+              token: request.env['warden-jwt_auth.token']
             }
           }
         else
