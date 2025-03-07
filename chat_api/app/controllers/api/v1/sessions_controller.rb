@@ -4,6 +4,8 @@ module Api
       respond_to :json
       skip_before_action :verify_signed_out_user
 
+      include RackSessionFixController
+
       private
 
       def respond_with(resource, _opts = {})
