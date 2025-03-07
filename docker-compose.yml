@@ -19,7 +19,7 @@ services:
   web:
     build:
       context: ./chat_api
-      dockerfile: ../dev.dockerfile
+      dockerfile: dev.dockerfile
     command: bash -c "rm -f tmp/pids/server.pid && bundle exec rails s -p 3000 -b '0.0.0.0'"
     volumes:
       - ./chat_api:/rails
