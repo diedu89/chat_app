@@ -1,23 +1,51 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Cookies from "js-cookie";
 import { AUTH_COOKIE_NAME } from "../constants/auth";
+import { fetchChatRooms, createChatRoom } from "../api/chat";
+import { ChatRoom } from "../types/chat";
 
 export default function Chat() {
   const [message, setMessage] = useState("");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [chatRooms, setChatRooms] = useState<ChatRoom[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [isCreatingChannel, setIsCreatingChannel] = useState(false);
+  const [newChannelName, setNewChannelName] = useState("");
+
+  useEffect(() => {
+    const loadChatRooms = async () => {
+      try {
+        const rooms = await fetchChatRooms();
+        setChatRooms(rooms);
+      } catch (err) {
+        setError("Failed to load chat rooms");
+        console.error("Error loading chat rooms:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadChatRooms();
+  }, []);
 
   const handleLogout = () => {
     Cookies.remove(AUTH_COOKIE_NAME);
     window.location.reload();
   };
 
-  // Dummy data for chat list
-  const chats = [
-    { id: 1, name: "# general", unread: 3 },
-    { id: 2, name: "# random", unread: 0 },
-    { id: 3, name: "🤝 team-chat", unread: 5 },
-    { id: 4, name: "💡 ideas", unread: 0 },
-  ];
+  const handleCreateChannel = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const newRoom = await createChatRoom(newChannelName);
+      setChatRooms((prevRooms) => [...prevRooms, newRoom]);
+      setNewChannelName("");
+      setIsCreatingChannel(false);
+    } catch (err) {
+      setError("Failed to create channel");
+      console.error("Error creating channel:", err);
+    }
+  };
 
   // Dummy messages
   const messages = [
@@ -85,24 +113,88 @@ export default function Chat() {
             </button>
           </div>
         </div>
-        <div className="p-4">
-          <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
-            Channels
-          </h3>
-          <div className="space-y-1">
-            {chats.map((chat) => (
-              <div
-                key={chat.id}
-                className="flex items-center justify-between p-2 rounded hover:bg-gray-700 cursor-pointer"
+        <div className="p-4 relative">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+              Channels
+            </h3>
+            <button
+              onClick={() => setIsCreatingChannel(true)}
+              className="text-gray-400 hover:text-gray-200 !p-1"
+              title="Create Channel"
+            >
+              <svg
+                className="w-3 h-3"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
               >
-                <span className="text-gray-300">{chat.name}</span>
-                {chat.unread > 0 && (
-                  <span className="bg-blue-500 text-white rounded-full px-2 py-1 text-xs">
-                    {chat.unread}
-                  </span>
-                )}
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 4v16m8-8H4"
+                />
+              </svg>
+            </button>
+          </div>
+
+          {isCreatingChannel && (
+            <form
+              onSubmit={handleCreateChannel}
+              className="absolute left-0 right-0 bg-gray-800 p-2 rounded shadow-lg z-50"
+            >
+              <div className="flex items-center space-x-2">
+                <input
+                  type="text"
+                  value={newChannelName}
+                  onChange={(e) => {
+                    const input = e.target;
+                    const start = input.selectionStart || 0;
+
+                    const value = input.value;
+                    const kebabCase = value
+                      .toLowerCase()
+                      .replace(/\s+/g, "-")
+                      .replace(/[^a-z0-9-]/g, "");
+
+                    setNewChannelName(kebabCase);
+
+                    requestAnimationFrame(() => {
+                      const newPosition =
+                        start - (value.length - kebabCase.length);
+                      input.setSelectionRange(newPosition, newPosition);
+                    });
+                  }}
+                  className="flex-1 min-w-0 px-2 py-1 text-sm rounded bg-gray-700 text-white border-0 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  placeholder="channel-name"
+                  autoFocus
+                />
+                <button
+                  type="submit"
+                  className="flex-shrink-0 px-2 py-1 text-xs !bg-blue-500 text-white rounded hover:bg-blue-600 !p-1"
+                >
+                  Save
+                </button>
               </div>
-            ))}
+            </form>
+          )}
+
+          <div className="space-y-1">
+            {isLoading ? (
+              <div className="text-gray-400 text-sm">Loading channels...</div>
+            ) : error ? (
+              <div className="text-red-400 text-sm">{error}</div>
+            ) : (
+              chatRooms.map((room) => (
+                <div
+                  key={room.id}
+                  className="flex items-center justify-between p-2 rounded hover:bg-gray-700 cursor-pointer"
+                >
+                  <span className="text-gray-300"># {room.name}</span>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </div>
