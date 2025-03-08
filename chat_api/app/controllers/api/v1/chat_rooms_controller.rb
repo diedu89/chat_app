@@ -5,8 +5,13 @@ module Api
       before_action :set_chat_room, only: [:show, :join, :leave]
 
       def index
-        @chat_rooms = current_user.chat_rooms
-        render json: @chat_rooms
+        @chat_rooms = ChatRoom.all
+        render json: @chat_rooms.map { |room|
+          room.as_json.merge(
+            is_member: room.users.include?(current_user),
+            members_count: room.users.count
+          )
+        }
       end
 
       def create

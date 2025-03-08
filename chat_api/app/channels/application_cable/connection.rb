@@ -9,8 +9,7 @@ module ApplicationCable
     private
 
     def find_verified_user
-      header = request.headers[:HTTP_AUTHORIZATION]
-      token = header&.split(' ')&.last&.strip
+      token = request.params[:token]&.strip
 
       return reject_unauthorized_connection if token.blank?
 
