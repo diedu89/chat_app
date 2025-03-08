@@ -16,7 +16,7 @@ services:
     ports:
       - "6379:6379"
 
-  web:
+  api:
     build:
       context: ./chat_api
       dockerfile: dev.dockerfile
@@ -34,6 +34,18 @@ services:
       - db
       - redis
     user: "1000:1000"
+
+  client:
+    build:
+      context: ./chat_client
+      dockerfile: Dockerfile
+    ports:
+      - "8080:80"
+    volumes:
+      - ./chat_client:/app
+      - /app/node_modules
+    depends_on:
+      - api
 
 volumes:
   postgres_data:
