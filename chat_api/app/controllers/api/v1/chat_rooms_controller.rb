@@ -19,26 +19,29 @@ module Api
         
         if @chat_room.save
           @chat_room.chat_room_users.create(user: current_user)
-          render json: @chat_room, status: :created
+          render json: room_with_metadata(@chat_room), status: :created
         else
           render json: { errors: @chat_room.errors.full_messages }, status: :unprocessable_entity
         end
       end
 
       def show
-        render json: @chat_room
+        render json: room_with_metadata(@chat_room)
       end
 
       def join
         @chat_room.chat_room_users.create(user: current_user)
-        render json: @chat_room
+        render json: room_with_metadata(@chat_room)
       rescue ActiveRecord::RecordNotUnique
         render json: { error: 'Already a member' }, status: :unprocessable_entity
       end
 
       def leave
-        @chat_room.chat_room_users.find_by(user: current_user)&.destroy
-        head :no_content
+        if @chat_room.chat_room_users.find_by(user: current_user)&.destroy
+          render json: room_with_metadata(@chat_room)
+        else
+          head :no_content
+        end
       end
 
       private
@@ -49,6 +52,13 @@ module Api
 
       def chat_room_params
         params.require(:chat_room).permit(:name)
+      end
+
+      def room_with_metadata(room)
+        room.as_json.merge(
+          is_member: room.users.include?(current_user),
+          members_count: room.users.count
+        )
       end
     end
   end
