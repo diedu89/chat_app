@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import Cookies from "js-cookie";
+import { Subscription } from "@rails/actioncable";
 import { AUTH_COOKIE_NAME } from "../constants/auth";
 import {
   fetchChatRooms,
@@ -23,6 +24,8 @@ export default function Chat() {
   const [selectedRoom, setSelectedRoom] = useState<ChatRoom | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [activeSubscription, setActiveSubscription] =
+    useState<Subscription | null>(null);
 
   const handleReceivedMessage = useCallback((message: Message) => {
     setMessages((prev) => [...prev, message]);
@@ -34,15 +37,17 @@ export default function Chat() {
         { channel: "ChatRoomChannel", chat_room_id: roomId },
         {
           received: (message: { type: string; message: Message }) => {
-            if (message.type === "message") {
+            if (message.type === "new_message") {
               handleReceivedMessage(message.message);
             }
           },
           connected: () => {
             console.log(`Connected to room ${roomId}`);
+            setActiveSubscription(subscription);
           },
           disconnected: () => {
             console.log(`Disconnected from room ${roomId}`);
+            setActiveSubscription(null);
           },
         }
       );
@@ -125,8 +130,11 @@ export default function Chat() {
     if (!selectedRoom || !message.trim()) return;
 
     try {
-      await createMessage(selectedRoom.id, message.trim());
-      setMessage("");
+      // Use the active subscription to send the message
+      if (activeSubscription) {
+        await createMessage(activeSubscription, message.trim());
+        setMessage("");
+      }
     } catch (err) {
       setError("Failed to send message");
       console.error("Error sending message:", err);

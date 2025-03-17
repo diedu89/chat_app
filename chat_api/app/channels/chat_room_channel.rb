@@ -1,36 +1,22 @@
 class ChatRoomChannel < ApplicationCable::Channel
   def subscribed
-    @chat_room = ChatRoom.find(params[:chat_room_id])
-    stream_for @chat_room
-    transmit({ type: 'confirm_subscription', message: "Connected to chat room #{@chat_room.name}" })
+    stream_from "chat_room_#{params[:chat_room_id]}"
   end
 
   def receive(data)
-    MessageSerializer.new(data).as_json
-    ChatRoomChannel.broadcast_to(
-      @chat_room,
-      {
-        type: 'message',
-        message: data
-      }
+    message = Message.create!(
+      content: data['content'],
+      chat_room_id: params[:chat_room_id],
+      sender: current_user
+    )
+    
+    ActionCable.server.broadcast(
+      "chat_room_#{params[:chat_room_id]}", 
+      { type: 'new_message', message: message.as_json(include: { sender: { only: [:id, :username] } }) }
     )
   end
 
   def unsubscribed
     # Any cleanup needed when channel is unsubscribed
-  end
-
-  private
-
-  def serialize_message(message)
-    {
-      id: message.id,
-      content: message.content,
-      sender: {
-        id: message.sender.id,
-        email: message.sender.email
-      },
-      created_at: message.created_at
-    }
   end
 end
